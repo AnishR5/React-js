@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const initialItems = [
   { id: 1, description: "Passports", quantity: 2, packed: false },
@@ -16,12 +16,25 @@ export default function App() {
     setItems((items) => items.filter((item) => item.id !== id));
   };
 
+  const handleToggleItem=(id)=>{
+    setItems((items)=>
+    items.map((item)=>
+    item.id===id?{...item, packed: !item.packed}
+    :item))
+  }
+
+  const clearAllItems=()=>{
+    const confirm=window.confirm("Are you sure you want to delete all items")
+    if(confirm)
+    setItems([])
+  }
+
   return (
     <div className="App">
       <Logo />
       <Form onAddItems={handleAddItem} />
-      <PackagingList items={items} onDeleteItem={handleDeleteItem} />
-      <Stats />
+      <PackagingList items={items} onDeleteItem={handleDeleteItem} packItem={handleToggleItem} clearAllItems={clearAllItems}/>
+      <Stats items={items} />
     </div>
   );
 }
@@ -70,21 +83,41 @@ function Form({ onAddItems }) {
   );
 }
 
-function PackagingList({ items, onDeleteItem }) {
+function PackagingList({ items, onDeleteItem,packItem,clearAllItems }) {
+
+  const [sortBy,setSortBy]=useState('input')
+  let sortedItems;
+
+  if(sortBy==='input') sortedItems=items;
+
+  if(sortBy==='description') sortedItems=items.slice().sort((a,b)=>a.description.localeCompare(b.description));
+
+  if(sortBy==='packed') sortedItems=items.slice().sort((a,b)=>Number(a.packed)-Number(b.packed));
+
   return (
     <div className="list">
       <ul>
-        {items.map((item) => (
-          <Item item={item} key={item.id} onDeleteItem={onDeleteItem} />
+        {sortedItems.map((item) => (
+          <Item item={item} key={item.id} onDeleteItem={onDeleteItem} packItem={packItem}/>
         ))}
       </ul>
+
+      <div className="actions">
+        <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
+          <option value="input">Sort by input order</option>
+          <option value="description">Sort by description</option>
+          <option value="packed">Sort by packed items</option>
+        </select>
+        <button onClick={clearAllItems}>Clear List</button>
+      </div>
     </div>
   );
 }
 
-function Item({ item, key, onDeleteItem }) {
+function Item({ item, key, onDeleteItem,packItem }) {
   return (
     <li>
+      <input type="checkbox" value={item.packed} onChange={()=>{packItem(item.id)}} />
       <span style={item.packed ? { textDecoration: "line-through" } : {}}>
         {item.quantity} {item.description}
       </span>
@@ -99,10 +132,24 @@ function Item({ item, key, onDeleteItem }) {
   );
 }
 
-function Stats() {
+function Stats({items}) {
+  if(!items.length)
+  return(
+    <p className="stats">
+      <em>Start adding items into your packing list</em>
+    </p>
+)
+  const numItems=items.length;
+  const numPacked=items.filter((item)=> item.packed).length
+  const percentage=(Math.round((numPacked/numItems)*100))
   return (
     <footer className="stats">
-      You have x items on your list, and you have packed x(x%)
+      <em>
+      {percentage===100? "You got everything packed" :
+      `
+      You have ${numItems} items on your list, and you have packed ${numPacked}(${percentage}%)`
+  }
+      </em>
     </footer>
   );
 }
